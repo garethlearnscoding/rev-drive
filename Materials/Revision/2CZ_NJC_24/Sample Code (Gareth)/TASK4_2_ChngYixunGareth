@@ -20,7 +20,7 @@ class Person:
     
 
 class Player(Person):
-    def __init__(self,full_name,date_of_birth,char_name,team_name,score):
+    def __init__(self,full_name,date_of_birth,team_name,char_name,score):
         super().__init__(full_name,date_of_birth)
         self.char_name = char_name
         self.team_name = team_name
@@ -28,7 +28,7 @@ class Player(Person):
     def event_name(self):
         char_name = self.char_name
         team_name = self.team_name
-        event_name = f"{char_name} {team_name}"
+        event_name = f"{char_name} <{team_name}>"
         return event_name
     def is_player(self):
         return True 
@@ -44,8 +44,10 @@ class Staff(Person):
         return event_name
     
 
-
 # Task 4.3
+import sqlite3
+import csv
+
 Event_People = []
 
 with open("./Resources/TASK4/TASK4PEOPLE.CSV") as file:
@@ -59,13 +61,43 @@ for i in data:
         temp = Staff(i[0],i[1])
     Event_People.append(temp)
 
+
+
 with open("./Resources/TASK4/TASK4PLAYERS.CSV") as file:
     reader = csv.reader(file)
-    data = list(reader)
+    players = list(reader)
 
-for i in data:
+for i in players:
     temp = Player(*i)
     Event_People.append(temp)
 
+bool_dict = {
+    "Player":[1,0],
+    "Staff":[0,1],
+    "Person":[0,0]
+}
+
+conn = sqlite3.connect("./Resources/TASK4/esports.db")
+for indiv in Event_People:
+    if isinstance(indiv,Staff):
+        bool_list = bool_dict["Staff"]
+        values = tuple([indiv.full_name,indiv.date_of_birth]+bool_list)
+        query = "INSERT INTO PEOPLE (FullName,DateofBirth,IsPlayer,IsStaff) VALUES (?,?,?,?)"
+        conn.execute(query,values)
+    elif isinstance(indiv,Player):
+        bool_list = bool_dict["Player"]
+        values_people = tuple([indiv.full_name,indiv.date_of_birth]+bool_list)
+        values_player = tuple([indiv.team_name,indiv.char_name,indiv.event_name(),indiv.score,indiv.full_name])
+        queries = [["INSERT INTO PEOPLE (FullName,DateofBirth,IsPlayer,IsStaff) VALUES (?,?,?,?)",values_people],["INSERT INTO PLAYER (PersonID,TeamName,CharacterName,EventName,Score) SELECT p.PersonID,?,?,?,? from PEOPLE p WHERE p.FullName = ? ",values_player]]
+        for query in queries:
+            conn.execute(*query)
+    elif isinstance(indiv,Person):
+        bool_list = bool_dict["Person"]
+        values = tuple([indiv.full_name,indiv.date_of_birth]+bool_list)
+        query = "INSERT INTO PEOPLE (FullName,DateofBirth,IsPlayer,IsStaff) VALUES (?,?,?,?)"
+        conn.execute(query,values)
+conn.commit()
+conn.close()
 
 
+    
